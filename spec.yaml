@@ -1,0 +1,228 @@
+# (required) セマンティックなバージョニングを記述する。今回は3.0.0を用いる。詳しくはドキュメントを参照。
+openapi: 3.0.2
+# (required) APIのメタデータを記述する。
+info:
+  # (required) APIの名称。
+  title: Sample API
+  # APIの簡潔な説明。CommonMarkシンタックスが使える。
+  description: A short description of API.
+  # APIの利用規約。URL形式でなければならない。
+  termsOfService: http://example.com/terms/
+  # コンタクト情報。(サポートページのURLやメールアドレス等)
+  contact:
+    name: API support
+    url: https://github.com/xshoji/go-rest-openapi
+    email: support@example.com
+  # ライセンス情報。ライセンスページのURLも記述可能。
+  license:
+    name: MIT License
+    url: https://raw.githubusercontent.com/xshoji/go-rest-openapi/master/LICENSE
+  # (required) APIドキュメントのバージョン。
+  version: 1.0.0
+# APIを提供するサーバーを記述する。配列で複数記述可能(STG, PROD等)。
+servers:
+  -
+    # APIサーバーのURL。
+    url: https://dev.sample-server.com/v1
+    # APIサーバーの説明。
+    description: Development server
+# (required) APIで利用可能なエンドポイントやメソッドを記述する。
+paths:
+  # 各エンドポイントのパスを記述する。serversで定義したURLにこのパスを結合したものが最終的なエンドポイントとなる。
+  /users:
+    # HTTPメソッドを定義。GET, PUT, POST, DELETE, OPTIONS, DELETE, PATCH, TRACEが使用可能。
+    get:
+      tags:
+        - users
+      # エンドポイントのサマリ。
+      summary: Get all users.
+      # エンドポイントの簡潔な説明。CommonMarkシンタックスを使用可能。
+      description: Returns an array of User model
+      parameters: []
+      responses:
+        '200':
+          description: A JSON array of User model
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+                # exampleはなくてもよい。ない場合は↑のcomponentsに定義したEntityのformatに従った値が自動で出力される
+                example:
+                  - id: 1
+                    name: John Doe
+                    age: 20
+                    nickname: jd
+                    addresss:
+                      contry: JP
+                      zipcode: 1112222
+                      state: Tokyo
+                      city: null
+                    married: false
+                    email: john@john.com
+                    website: null
+                    sports:
+                      - SOCCER                    
+    post:
+      tags:
+        - users
+      summary: Create a new User
+      description: Create a new User
+      parameters: []
+      requestBody:
+        description: user to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: CREATED
+  /users/{userId}:
+    get:
+      tags:
+        - users
+      summary: Get user by ID.
+      description: Returns a single User model
+      parameters:
+        - name: userId
+          in: path
+          description: user id
+          required: true
+          schema:
+            # 本当はintergerにしたいけどopenapi-generatorのバグで生成されるControllerでビルドエラーになるのでstringで定義
+            type: string
+      responses:
+        '200':
+          description: A single User model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+# (required) APIで使用するオブジェクトスキーマを記述する。
+components:
+  schemas:
+    # UserやProduct等のモデル
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - age
+      properties:
+        id:
+          type: integer
+          format: int32
+          readOnly: true # post時に指定できなくなる
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        nickname:
+          type: string
+          nullable: true
+          minLength: 2
+          maxLength: 100
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+        birth:
+          $ref: "#/components/schemas/Birth"
+        addresss:
+          $ref: "#/components/schemas/Address"
+        married:
+          type: boolean
+          nullable: true
+        email:
+          type: string
+          # > Data Types ｜ Swagger
+          # > https://swagger.io/docs/specification/data-models/data-types/#format
+          format: email
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        sports:
+          type: array
+          description: User's sports.
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/SportsType'
+    Birth:
+      type: object
+      required:
+        - datetime
+      properties:
+        datetime:
+          type: string
+          format: date-time
+        weight:
+          type: integer
+          format: int32
+          nullable: true
+        hospital:
+          type: string
+          nullable: true
+    Address:
+      type: object
+      required:
+        - contory
+        - zipcode
+        - state
+      properties:
+        country:
+          $ref: '#/components/schemas/Country'
+        zipCode:
+          type: integer
+          minLength: 1
+          maxLength: 20
+        state:
+          type: string
+          minLength: 1
+          maxLength: 40
+        city:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 40
+    SportsType:
+      type: integer
+      # > ［BUG］ ［Golang］ Integer enum types values are quoted · Issue #3941 · OpenAPITools/openapi-generator
+      # > https://github.com/OpenAPITools/openapi-generator/issues/3941
+      enum:
+      - 0
+      - 1
+      - 2
+      - 3
+      x-enum-varnames:
+      - UNKNOWN_SPORTS
+      - SOCCER
+      - BASEBALL
+      - SWIMMING
+    Country:
+      type: integer
+      enum:
+      - 0
+      - 1
+      - 2
+      x-enum-varnames:
+      - UNKNOWN_COUNTRY
+      - US
+      - JP
+
+# API全体を通して使用可能なセキュリティ仕様を記述する。(OAuth等)
+#security:
+#  - api_key: []
+# APIで使用されるタグのリスト。各種ツールによってパースされる際は、記述された順序で出力される。タグ名はユニークで無ければならない。
+tags:
+  - name: users
+    description: Access to Users
+# 外部ドキュメントを記述する(API仕様書等)。
+#externalDocs:
+#  description: Find more info here
+#  url: https://example.com
